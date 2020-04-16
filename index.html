@@ -7,6 +7,7 @@
 </head>
 <style>
         .preview-container{
+            display: none;
             position: fixed;
             right: 0;
             left: 0;
@@ -15,17 +16,36 @@
             font-size: 0;line-height: 0;
             overflow: hidden;
             background: url('./bg-slide.jpg');
-            border: 1px solid #000;
-   
         }
-        .preview-header{
-            
-            top: 0;
-            left: 0;
+
+        .preview-close{
+            background-color: rgba(0, 0, 0, 0.5);
+            border-radius: 50%;
+            cursor: pointer;
+            height: 80px;
             overflow: hidden;
             position: absolute;
-            right: 0;
-            text-align: center;
+            right:-40px;
+            top: -40px;
+            transition: background-color 0.15s;
+            width: 80px;
+        }
+
+        .preview-close::before{
+            bottom: 15px;
+            left: 15px;
+            cursor: pointer;
+            position: absolute;
+            background-image: url('./icon/icon_pre_close.png');
+            background-repeat: no-repeat;
+            background-size: 20px;
+            color: transparent;
+            display: block;
+            font-size: 0;
+            height: 20px;
+            line-height: 0;
+            width: 20px;
+            content: "Close";
         }
 
         .preview-content{
@@ -37,6 +57,7 @@
             right: 0;
             text-align: center;
         }
+
         .preview-content img{
             position:absolute;
             bottom: 0;
@@ -45,7 +66,6 @@
             right: 0;
             display: block;
         }
-
 
         .preview-footer{
             position: absolute;
@@ -58,221 +78,246 @@
         }
         .preview-footer>ul{
             display: inline-block;
-            margin: 0 auto 5px;
+            background-color: rgba(0, 0, 0, .5);
+            border-top-left-radius: 5px;
+            border-top-right-radius: 5px;
+            margin: 0 auto;
             overflow: hidden;
-            padding: 3px 0;
+            padding: 0;
+            height: 40px;
         }
         .preview-footer>ul>li{
             font-size: 18px;
             line-height: 40px;
             list-style: none;
-            background-color: rgba(0, 0, 0, 0.5);
-            border-radius: 50%;
             cursor: pointer;
             float: left;
             height: 40px;
-            overflow: hidden;
-            -webkit-transition: background-color 0.15s;
-            transition: background-color 0.15s;
             width: 40px;
-            margin-left: 20px;
+            overflow: hidden;
+            padding: 9px;
+        }
+        .preview-footer>ul>li>img{
+            width:22px;
+            height: 22px;
         }
 </style>  
-<body onLoad="remove()">
-
+<body>
+        <button id="btn">开启</button>
 
 <div class="preview-container">
-         <div class="preview-header">
-            <button>关闭</button>
-        </div>
-
         <div class="preview-content">
-            <img id="div1" onMouseOver="dragimages=div1;drag=1;" class="preview-img" src="./img/4.png" alt="">
+            <img id="div1" onMouseOver="dragimages=div1;drag=1;" class="preview-img" src="" alt="">
         </div>
-         
+        <div class="preview-close">
+            
+        </div>
         <div class="preview-footer">
             <ul>
-                <li class="zoom-in">放大</li>
-                <li class="zoom-out">缩小</li>
-                <li class="zoom-reset">原始尺寸</li>
+                <li class="zoom-in">
+                    <img src="./icon/icon_zoom_in.png" alt="放大">
+                </li>
+                <li class="zoom-out">
+                    <img src="./icon/icon_zoom_out.png" alt="缩小">
+                </li>
+                <li class="zoom-reset">
+                    <img src="./icon/icon_zoom_reset.png" alt="原始比例">
+                </li>
             </ul>
         </div>
 </div>
 <script src="https://cdn.bootcss.com/jquery/3.5.0/jquery.js"></script>
 <script>
     $(function(){
-        console.log($('.preview-content').height())
-        var pre = new PreImg('.preview-img');
+        var pre = new PreImg('.preview-img','./img/4.png');
+    })
+    $(document).on('click','#btn',function(){
+        $('.preview-container').fadeIn();
+    })
+    // Obj深度拷贝
+var assign = Object.assign || function assign(obj) {
+    for (var _len = arguments.length, args = new Array(_len > 1 ? _len - 1 : 0), _key = 1; _key < _len; _key++) {
+        args[_key - 1] = arguments[_key];
+    }
+    if (isObject(obj) && args.length > 0) {
+        args.forEach(function (arg) {
+            if (isObject(arg)) {
+                Object.keys(arg).forEach(function (key) {
+                    obj[key] = arg[key];
+                });
+            }
+        });
+    }
+    return obj;
+};
+
+function PreImg(elem,src){
+    this.init(elem,src);
+    this.events();
+}
+
+PreImg.prototype.events = function(){
+    var len = $(".footer-tool").length;
+    var that = this;
+    $(document).on('click',".zoom-in", function () {
+        // console.log(that, i);
+        that.zoom.call(that, 0.1);
+    });
+    $(document).on('click',".zoom-out", function () {
+        // console.log(that, i);
+        that.zoom.call(that, -0.1);
+    });
+    $(document).on('click',".zoom-reset", function () {
+        // console.log(that, i);
+        that.reset.call(that, 0);
+    });
+    $(document).on('click',".preview-close", function () {
+        // console.log(that, i);
+        that.close.call(that);
+    });
+}
+PreImg.prototype.init = function(elem,src){
+    var elem = this.elem = $(elem);
+    this.elem.attr('src',src);
+    var imageData  = {
+        naturalWidth: '',
+        naturalHeight: '',
+        aspectRatio: '',
+        ratio: '',
+        width: '',
+        height: '',
+        left: '',
+        top: ''
+    };
+    this.imageData = imageData;
+    var viewWidth=window.innerWidth;
+    var viewHeight=window.innerHeight;
+    viewHeight = viewHeight - $('.preview-footer').height();
+    var that = this;
+    this.getImageSizes(src,function(realWidth,realHeight){
+        that.imageData.naturalWidth = realWidth;
+        that.imageData.naturalHeight = realHeight;
+        // 图片的宽高比
+        var imgRadio = that.imageData.naturalWidth /  that.imageData.naturalHeight;
+        var height = viewHeight;
+        var width = viewWidth;
+
+        // 如果视图的高 * 图片比例 大于视图的宽  说明原比例情况下放不下
+        if(viewHeight * imgRadio > viewWidth){
+            // 按图片比例最大化显示
+            height = viewWidth / imgRadio;
+        }else{
+            width = viewHeight * imgRadio;
+        }
+        that.imageData.width = width = Math.min(width * 0.9, realWidth);
+        that.imageData.height = height = Math.min(height * 0.9, realHeight);
+        that.imageData.left = (viewWidth-width)/2;
+        that.imageData.top = (viewHeight-height)/2;
+        that.renderImg(that.imageData);
+        // 拷贝初始化的原图
+        var initialImageData = assign({}, imageData);
+        that.initialImageData = initialImageData;
+        // 设置上下和左右位置 居中
     })
 
-    function PreImg(elem){
-        this.init(elem);
-        this.events();
-    }
-    PreImg.prototype.events = function(){
-        var len = $(".footer-tool").length;
-        var that = this;
-        $(document).on('click',".zoom-in", function () {
-            // console.log(that, i);
-            that.zoom.call(that, 0.1);
-        });
-        $(document).on('click',".zoom-out", function () {
-            // console.log(that, i);
-            that.zoom.call(that, -0.1);
-        });
-        $(document).on('click',".zoom-reset", function () {
-            // console.log(that, i);
-            that.reset.call(that, 0);
-        });
-        // $(document).on('mousedown',".preview-img", function (ev) {
-        //     // console.log(that, i);
-        //     // that.drag.call(that, this,ev);
-        // });
 
-    }
-    PreImg.prototype.drag = function(self,ev){
-        //步骤1
-   
+}
+PreImg.prototype.renderImg = function(option){
+    this.elem.css({
+        'width':option.widtlefth,
+        'height':option.height,
+        'top':option.top,
+        'left':option.left
+    });
+}
 
+PreImg.prototype.zoom = function(ratio){
+    var ratio = Number(ratio);
+    var imageData = this.imageData
+    if (ratio < 0) {
+        // 缩小
+        ratio = 1 / (1 - ratio);
+    } else {
+        // 放大
+        ratio = 1 + ratio;
     }
-    PreImg.prototype.init = function(elem){
-        var elem = this.elem = $(elem);
-        var imageData  = {
-                    naturalWidth: '',
-                    naturalHeight: '',
-                    aspectRatio: '',
-                    ratio: '',
-                    width: '',
-                    height: '',
-                    left: '',
-                    top: ''
-        };
-        this.imageData = imageData;
-       
-        var viewWidth=window.innerWidth;
-        var viewHeight=window.innerHeight;
-        viewHeight = viewHeight - $('.preview-footer').height();
+    console.log(ratio);
+    this.zoomTo(imageData.width * ratio / imageData.naturalWidth)
+}
+
+PreImg.prototype.zoomTo = function(ratio){
     
-         var that = this;
-        this.getImageSizes(elem,function(realWidth,realHeight){
+    var imageData = this.imageData;
 
-            that.imageData.naturalWidth = realWidth;
-            that.imageData.naturalHeight = realHeight;
+    var width = imageData.width,
+        height = imageData.height,
+        left = imageData.left,
+        top = imageData.top,
+        naturalWidth = imageData.naturalWidth,
+        naturalHeight = imageData.naturalHeight;
 
-            console.log("img的宽是"+realWidth);
-            console.log("img的高是"+realHeight);
-                4/3
-            // 图片的宽高比
+    var newWidth = naturalWidth * ratio;
+    var newHeight = naturalHeight * ratio;
+    
+    
+    // 从图片中央放大
+    var offsetWidth = newWidth - width;
+    var offsetHeight = newHeight - height;
+    
+    
+    var oldRatio = width / naturalWidth;
+    
+    
+    imageData.left -= offsetWidth / 2;
+    imageData.top -= offsetHeight / 2;
+    
+    
+    
+    imageData.width = newWidth;
+    imageData.height = newHeight;
+    imageData.ratio = ratio;
+    this.renderImg(imageData);
 
-            var imgRadio = that.imageData.naturalWidth /  that.imageData.naturalHeight;
-            var height = viewHeight;
-            var width = viewWidth;
-            
-            // 如果视图的高 * 图片比例 大于视图的宽  说明原比例情况下放不下
-            if(viewHeight * imgRadio > viewWidth){
-                // 视图的宽缩小两倍作为高显示
-            
-                height = viewWidth / imgRadio;
-            }else{
-           
-                width = viewHeight * imgRadio;
-            }
-            that.imageData.width = width = Math.min(width * 0.9, realWidth);
-            that.imageData.height = height = Math.min(height * 0.9, realHeight);
-            that.imageData.left = (viewWidth-width)/2;
-            that.imageData.top = (viewHeight-height)/2;
-            that.renderImg(that.imageData);
-            // 拷贝初始化的原图
-            var initialImageData = assign({}, imageData);
-            that.initialImageData = initialImageData;
-                // 设置上下和左右位置 居中   
+}
+
+PreImg.prototype.reset = function(ratio){
+    this.imageData = assign({}, this.initialImageData);
+    this.renderImg(this.imageData)
+}
+PreImg.prototype.close = function(){
+    $('.preview-container').fadeOut();
+}
+PreImg.prototype.getImageSizes = function(src,callback){
+    var newImage = document.createElement('img');
+    newImage.src = src;
+    var body = document.body || document.documentElement;
+    newImage.onload = function(){
+        var realWidth = newImage.width;
+        var realHeight = newImage.height;
+        callback(realWidth,realHeight);
+        // 移除img元素
+        $(newImage).remove();
+    }
+}
+
+ $('#div1').mousedown(function (e) {
+        $(this).css('cursor','move');
+        var boxLeft = e.offsetX,   //鼠标按下时记录指针偏离盒子左侧的距离
+            boxTop = e.offsetY;    //鼠标按下时记录指针偏离盒子顶部的距离
+        $(document).mousemove(function (event) {
+            $('#div1').offset({
+                left:event.pageX-boxLeft,    //两者相减保证鼠标按下时盒子位置不动
+                top:event.pageY-boxTop       //两者相减保证鼠标按下时盒子位置不动
+            })
         })
-    
-     
-    }
-    PreImg.prototype.renderImg = function(option){
-        this.elem.css({
-            'width':option.widtlefth,
-            'height':option.height,
-            'top':option.top,
-            'left':option.left
-        });
-    }
+    }).mouseup(function () {
+        $(this).css('cursor','default');
+        $(document).off('mousemove');   //鼠标松开后清除鼠标移动事件
+    });
+    // 禁止图片在新标签中打开
+    function imgdragstart(){return false;}
+    for(i in document.images)document.images[i].ondragstart=imgdragstart;
 
-    PreImg.prototype.zoom = function(ratio){
-        var ratio = Number(ratio);
-        var imageData = this.imageData
-        if (ratio < 0) {
-            // 缩小
-            ratio = 1 / (1 - ratio);
-        } else {
-            // 放大
-            ratio = 1 + ratio;
-        }
-        console.log(ratio);
-        this.zoomTo(imageData.width * ratio / imageData.naturalWidth)
-    }
-
-    PreImg.prototype.zoomTo = function(ratio){
-
-        var newWidth = naturalWidth * ratio;
-        var newHeight = naturalHeight * ratio;
-        var imageData = this.imageData;
-
-        var width = imageData.width,
-            height = imageData.height,
-            left = imageData.left,
-            top = imageData.top,
-            naturalWidth = imageData.naturalWidth,
-            naturalHeight = imageData.naturalHeight;
-
-        var newWidth = naturalWidth * ratio;
-        var newHeight = naturalHeight * ratio;
-        // 从图片中央放大
-        var offsetWidth = newWidth - width;
-        var offsetHeight = newHeight - height;
-        var oldRatio = width / naturalWidth;
-        imageData.left -= offsetWidth / 2;
-        imageData.top -= offsetHeight / 2;
-        imageData.width = newWidth;
-        imageData.height = newHeight;
-        imageData.ratio = ratio;
-        this.renderImg(imageData);
-
-    }
-
-    PreImg.prototype.reset = function(ratio){
-        this.imageData = assign({}, this.initialImageData);
-        this.renderImg(this.imageData)
-    }
-    PreImg.prototype.getImageSizes = function(imgElem,callback){
-        var newImage = document.createElement('img');
-        newImage.src = imgElem.attr('src');
-        var body = document.body || document.documentElement;
-        newImage.onload = function(){
-            var realWidth = newImage.width;
-            var realHeight = newImage.height;
-            callback(realWidth,realHeight);
-            // 移除img元素
-            $(newImage).remove();
-        }
-    }
-    // jsObj拷贝
-    var assign = Object.assign || function assign(obj) {
-        for (var _len = arguments.length, args = new Array(_len > 1 ? _len - 1 : 0), _key = 1; _key < _len; _key++) {
-            args[_key - 1] = arguments[_key];
-        }
-        if (isObject(obj) && args.length > 0) {
-            args.forEach(function (arg) {
-                if (isObject(arg)) {
-                    Object.keys(arg).forEach(function (key) {
-                        obj[key] = arg[key];
-                    });
-                }
-            });
-        }
-        return obj;
-    };
 
 
 </script>
